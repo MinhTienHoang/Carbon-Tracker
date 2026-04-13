@@ -10,7 +10,7 @@ import {
 import FootprintChart from "@/components/charts/FootprintChart";
 import ComparisonSection from "@/components/dashboard/ComparisonSection";
 import ShareButton from "@/components/ui/ShareButton";
-import { getUserFootprints } from "@/lib/firebase/firestore";
+import { getUserFootprints } from "@/lib/storage/localData";
 import { exportToCSV, ActivityHistoryEntry } from "@/utils/exportCSV";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import Spinner from "@/components/ui/Spinner";

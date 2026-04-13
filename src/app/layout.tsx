@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProviderDev from "@/components/auth/AuthProviderDev";
@@ -60,11 +60,12 @@ export const metadata: Metadata = {
     description:
       "Track your digital carbon footprint and make a positive environmental impact",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
   themeColor: "#10b981",
 };
 

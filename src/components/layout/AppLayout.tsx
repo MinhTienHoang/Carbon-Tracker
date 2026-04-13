@@ -11,7 +11,7 @@ import GoalsPanel from "@/components/gamification/GoalsPanel";
 import BadgeDisplay from "@/components/gamification/BadgeDisplay";
 import { ActivityInput } from "@/types";
 import { calculateCarbonFootprint } from "@/lib/calculations/carbonFootprint";
-import { saveCarbonFootprint, saveActivity } from "@/lib/firebase/firestore";
+import { saveCarbonFootprint, saveActivity } from "@/lib/storage/localData";
 import { ShortcutsModal } from "../ui/ShortcutsModal";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import QuickActionsFAB from "@/components/ui/QuickActionsFAB";
