@@ -66,20 +66,6 @@ function StatCard({ title, value, change, icon, color }: StatCardProps) {
   );
 }
 
-interface EquivalentCardProps {
-  description: string;
-  icon: string;
-}
-
-function EquivalentCard({ description, icon }: EquivalentCardProps) {
-  return (
-    <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg">
-      <span className="text-2xl">{icon}</span>
-      <span className="text-gray-700">{description}</span>
-    </div>
-  );
-}
-
 function getStartOfDay(date: Date) {
   const normalized = new Date(date);
   normalized.setHours(0, 0, 0, 0);
@@ -353,7 +339,23 @@ export default function Dashboard({
     );
   }
 
-  const equivalentIcons = ["🚗", "📱", "☕", "💡"];
+  const recentActivityEntries = useMemo(
+    () =>
+      [...(activityHistory as ActivityHistoryEntry[])]
+        .sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+        .slice(0, 4),
+    [activityHistory]
+  );
+
+  const formatActivitySummary = (entry: ActivityHistoryEntry) => {
+    return Object.entries(entry.activities)
+      .filter(([, value]) => value > 0)
+      .map(([activity, value]) => `${activity.replace(/_/g, " ")}: ${value}`)
+      .join(", ");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-6">
@@ -420,22 +422,33 @@ export default function Dashboard({
           />
         </div>
 
-        {/* Equivalents Section */}
-        {displayedDashboardData.equivalents.length > 0 && (
+        {/* Recent Activities */}
+        {recentActivityEntries.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg p-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-              Today&apos;s Impact in Context
+              Most Recent Activities
             </h3>
             <div className="grid md:grid-cols-2 gap-4">
-              {displayedDashboardData.equivalents
-                .slice(0, 4)
-                .map((equivalent, index) => (
-                  <EquivalentCard
-                    key={index}
-                    description={equivalent.description}
-                    icon={equivalentIcons[index] || "🔄"}
-                  />
-                ))}
+              {recentActivityEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-lg border border-gray-100 bg-gray-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {entry.timestamp.toLocaleString()}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {formatActivitySummary(entry)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-bold text-green-600">
+                      +{formatCO2Amount(entry.result.totalCO2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
