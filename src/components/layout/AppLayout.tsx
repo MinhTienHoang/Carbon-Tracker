@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuthDev";
 import Navigation from "./Navigation";
 import Dashboard from "@/components/dashboard/Dashboard";
