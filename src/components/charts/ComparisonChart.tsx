@@ -1,25 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { Bar } from "react-chartjs-2";
-import {
-  BarElement,
-  CategoryScale,
-  Chart as ChartJS,
-  ChartOptions,
-  Legend,
-  LinearScale,
-  Title,
-  Tooltip,
-  TooltipItem,
-} from "chart.js";
 import { formatCO2Amount } from "@/lib/calculations/carbonFootprint";
 import {
   ComparisonPeriod,
   getComparisonData,
 } from "@/constants/globalAverages";
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 interface ComparisonChartProps {
   userFootprint: number;
@@ -27,6 +13,15 @@ interface ComparisonChartProps {
   averageFootprint?: number;
   targetFootprint?: number;
   className?: string;
+}
+
+interface ComparisonBar {
+  label: string;
+  value: number;
+  color: string;
+  bgColor: string;
+  textColor: string;
+  description: string;
 }
 
 export default function ComparisonChart({
@@ -52,119 +47,46 @@ export default function ComparisonChart({
     return `${Math.abs(((safeUserFootprint / baseline - 1) * 100)).toFixed(1)}%`;
   };
 
-  const chartData = useMemo(() => {
-    return {
-      labels: ["Your Footprint", "Tampa Average", "Target Goal"],
-      datasets: [
-        {
-          label: `${
-            period.charAt(0).toUpperCase() + period.slice(1)
-          } CO2 Emissions`,
-          data: [safeUserFootprint, effectiveAverage, effectiveTarget],
-          backgroundColor: [
-            safeUserFootprint <= effectiveTarget ? "#10B981" : "#EF4444",
-            "#3B82F6",
-            "#F59E0B",
-          ],
-          borderColor: [
-            safeUserFootprint <= effectiveTarget ? "#059669" : "#DC2626",
-            "#2563EB",
-            "#D97706",
-          ],
-          borderWidth: 2,
-          borderRadius: 8,
-          borderSkipped: false,
-        },
-      ],
-    };
-  }, [effectiveAverage, effectiveTarget, period, safeUserFootprint]);
-
-  const chartOptions = useMemo<ChartOptions<"bar">>(() => {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false,
-        },
-        title: {
-          display: true,
-          text: `${
-            period.charAt(0).toUpperCase() + period.slice(1)
-          } Carbon Footprint Comparison`,
-          font: {
-            size: 18,
-            weight: "bold" as const,
-          },
-          padding: 20,
-          color: "#1F2937",
-        },
-        tooltip: {
-          backgroundColor: "#1F2937",
-          titleColor: "#F9FAFB",
-          bodyColor: "#F9FAFB",
-          borderColor: "#374151",
-          borderWidth: 1,
-          cornerRadius: 8,
-          callbacks: {
-            label: (context: TooltipItem<"bar">) => {
-              const value = context.parsed.y ?? 0;
-              const label = context.label;
-
-              let description = "";
-              if (label === "Your Footprint") {
-                if (effectiveTarget > 0) {
-                  const percentageVsTarget = (
-                    (value / effectiveTarget - 1) *
-                    100
-                  ).toFixed(1);
-                  description =
-                    value <= effectiveTarget
-                      ? `${Math.abs(Number(percentageVsTarget))}% below target`
-                      : `${percentageVsTarget}% above target`;
-                }
-              } else if (label === "Tampa Average") {
-                description = "Tampa annual average baseline (15.3 tons/year)";
-              } else if (label === "Target Goal") {
-                description = "20% reduction from Tampa average";
-              }
-
-              return description
-                ? [`${formatCO2Amount(value)}`, description]
-                : [formatCO2Amount(value)];
-            },
-          },
-        },
+  const bars = useMemo<ComparisonBar[]>(() => {
+    return [
+      {
+        label: "Your Footprint",
+        value: safeUserFootprint,
+        color: safeUserFootprint <= effectiveTarget ? "#10B981" : "#EF4444",
+        bgColor:
+          safeUserFootprint <= effectiveTarget ? "bg-green-50" : "bg-red-50",
+        textColor:
+          safeUserFootprint <= effectiveTarget
+            ? "text-green-700"
+            : "text-red-700",
+        description:
+          safeUserFootprint <= effectiveTarget
+            ? "Below target"
+            : "Above target",
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: "#F3F4F6",
-          },
-          ticks: {
-            callback: (value: string | number) => formatCO2Amount(Number(value)),
-            color: "#6B7280",
-            font: {
-              size: 12,
-            },
-          },
-        },
-        x: {
-          grid: {
-            display: false,
-          },
-          ticks: {
-            color: "#374151",
-            font: {
-              size: 12,
-              weight: 500,
-            },
-          },
-        },
+      {
+        label: "Tampa Average",
+        value: effectiveAverage,
+        color: "#3B82F6",
+        bgColor: "bg-blue-50",
+        textColor: "text-blue-700",
+        description: "Local annual baseline",
       },
-    };
-  }, [effectiveTarget, period]);
+      {
+        label: "Target Goal",
+        value: effectiveTarget,
+        color: "#F59E0B",
+        bgColor: "bg-amber-50",
+        textColor: "text-amber-700",
+        description: "Reduction target",
+      },
+    ];
+  }, [effectiveAverage, effectiveTarget, safeUserFootprint]);
+
+  const maxValue = useMemo(
+    () => Math.max(...bars.map((bar) => bar.value), 1),
+    [bars]
+  );
 
   const performanceStatus = useMemo(() => {
     if (safeUserFootprint <= effectiveTarget) {
@@ -196,8 +118,43 @@ export default function ComparisonChart({
 
   return (
     <div className={`bg-white rounded-xl shadow-lg p-6 ${className}`}>
-      <div className="h-80 mb-6">
-        <Bar data={chartData} options={chartOptions} />
+      <div className="mb-6">
+        <h3 className="text-center text-xl font-bold text-gray-900">
+          {period.charAt(0).toUpperCase() + period.slice(1)} Carbon Footprint
+          Comparison
+        </h3>
+      </div>
+
+      <div className="mb-6 space-y-4">
+        {bars.map((bar) => {
+          const widthPercent = `${Math.max((bar.value / maxValue) * 100, 2)}%`;
+
+          return (
+            <div key={bar.label} className={`rounded-xl p-4 ${bar.bgColor}`}>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {bar.label}
+                  </p>
+                  <p className={`text-xs ${bar.textColor}`}>{bar.description}</p>
+                </div>
+                <span className="text-sm font-bold text-gray-800">
+                  {formatCO2Amount(bar.value)}
+                </span>
+              </div>
+
+              <div className="h-5 rounded-full bg-white/80">
+                <div
+                  className="h-5 rounded-full transition-all duration-500"
+                  style={{
+                    width: widthPercent,
+                    backgroundColor: bar.color,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div
