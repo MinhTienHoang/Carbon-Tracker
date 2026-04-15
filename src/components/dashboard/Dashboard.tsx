@@ -348,22 +348,27 @@ export default function Dashboard({
     );
   }
 
-  const recentActivityEntries = useMemo(
-    () =>
-      [...(activityHistory as ActivityHistoryEntry[])]
-        .sort(
-          (a, b) =>
-            getTimestampValue(b.timestamp).getTime() -
-            getTimestampValue(a.timestamp).getTime()
-        )
-        .slice(0, 4),
-    [activityHistory]
-  );
+  const recentActivityEntries = useMemo(() => {
+    if (!activityHistory || activityHistory.length === 0) return [];
+    const entries = Array.isArray(activityHistory) ? activityHistory : [];
+    return entries
+      .slice()
+      .sort(
+        (a, b) =>
+          getTimestampValue(b.timestamp).getTime() -
+          getTimestampValue(a.timestamp).getTime()
+      )
+      .slice(0, 4);
+  }, [activityHistory]);
 
-  const formatActivitySummary = (entry: ActivityHistoryEntry) => {
+  const formatActivitySummary = (entry: any) => {
+    if (!entry?.activities) return "No activities";
     return Object.entries(entry.activities)
-      .filter(([, value]) => value > 0)
-      .map(([activity, value]) => `${activity.replace(/_/g, " ")}: ${value}`)
+      .filter(([, value]: [string, any]) => value > 0)
+      .map(([activity, value]: [string, any]) => {
+        const displayValue = typeof value === "number" ? value.toFixed(1) : value;
+        return `${activity.replace(/_/g, " ")}: ${displayValue}`;
+      })
       .join(", ");
   };
 
