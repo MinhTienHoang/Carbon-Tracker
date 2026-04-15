@@ -417,8 +417,19 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
     try {
       const baseResult = calculateCarbonFootprint(activities);
       const totalCO2 = baseResult.totalCO2 + customActivitiesTotal;
+      
+      // Add custom activities to breakdown
+      const breakdown = { ...baseResult.breakdown };
+      customActivities.forEach((activity) => {
+        const value = customActivityValues[activity.id] || 0;
+        if (value > 0) {
+          breakdown[activity.name] = value * activity.emissionFactor;
+        }
+      });
+      
       const result = {
         ...baseResult,
+        breakdown,
         totalCO2,
         equivalents: calculateEquivalents(totalCO2),
       };

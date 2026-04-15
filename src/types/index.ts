@@ -126,7 +126,7 @@ export interface DashboardData {
   todayFootprint: number;
   weeklyFootprint: number;
   monthlyFootprint: number;
-  weeklyBreakdown: Record<ActivityType, number>;
+  weeklyBreakdown: Record<string, number>;
   trend: Array<{ date: string; co2: number }>;
   equivalents: Array<{ description: string; value: number; unit: string }>;
 }

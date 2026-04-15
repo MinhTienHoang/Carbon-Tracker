@@ -124,7 +124,7 @@ function buildDashboardDataFromHistory(
     .filter((entry) => getTimestampValue(entry.timestamp) >= monthStart)
     .reduce((sum, entry) => sum + entry.result.totalCO2, 0);
 
-  const weeklyBreakdown: Record<ActivityType, number> = {
+  const weeklyBreakdown: Record<string, number> = {
     emails: 0,
     streaming: 0,
     coding: 0,
@@ -139,7 +139,10 @@ function buildDashboardDataFromHistory(
     .forEach((entry) => {
       Object.entries(entry.result.breakdown).forEach(([activity, value]) => {
         if (isActivityType(activity)) {
-          weeklyBreakdown[activity] += value;
+          weeklyBreakdown[activity as ActivityType] += value;
+        } else {
+          // Include custom activities
+          weeklyBreakdown[activity] = (weeklyBreakdown[activity] || 0) + value;
         }
       });
     });
@@ -254,7 +257,7 @@ export default function Dashboard({
           .reduce((sum, f) => sum + f.totalCO2, 0);
 
         // Calculate weekly breakdown
-        const weeklyBreakdown: Record<ActivityType, number> = {
+        const weeklyBreakdown: Record<string, number> = {
           emails: 0,
           streaming: 0,
           coding: 0,
@@ -269,7 +272,10 @@ export default function Dashboard({
           .forEach((f) => {
             Object.entries(f.breakdown).forEach(([activity, value]) => {
               if (isActivityType(activity)) {
-                weeklyBreakdown[activity] += value;
+                weeklyBreakdown[activity as ActivityType] += value;
+              } else {
+                // Include custom activities
+                weeklyBreakdown[activity] = (weeklyBreakdown[activity] || 0) + value;
               }
             });
           });
@@ -387,11 +393,24 @@ export default function Dashboard({
   }
 
   const formatActivitySummary = (entry: ActivityHistoryEntry) => {
-    return Object.entries(entry.activities)
+    const standardActivities = Object.entries(entry.activities)
       .filter(([, value]) => value > 0)
       .map(([activity, value]) => {
         const displayValue = value.toFixed(1);
         return `${activity.replace(/_/g, " ")}: ${displayValue}`;
+      });
+    
+    // Add custom activities from breakdown (those not in ActivityType)
+    const customActivities = Object.entries(entry.result.breakdown)
+      .filter(([activity]) => !isActivityType(activity))
+      .filter(([, value]) => value > 0)
+      .map(([activity, value]) => {
+        const displayValue = Math.round(value);
+        return `${activity}: ${displayValue}g`;
+      });
+    
+    return [...standardActivities, ...customActivities].join(", ");
+  };
       })
       .join(", ");
   };
@@ -562,6 +581,17 @@ export default function Dashboard({
                             className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
                           >
                             {activity}: {value as number}
+                          </span>
+                        ) : null
+                    )}
+                    {Object.entries(entry.result.breakdown).map(
+                      ([activity, value]) =>
+                        !isActivityType(activity) && (value as number) > 0 ? (
+                          <span
+                            key={activity}
+                            className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
+                          >
+                            {activity}: {Math.round(value as number)}g
                           </span>
                         ) : null
                     )}
