@@ -6,6 +6,7 @@ import { calculateCarbonFootprint, calculateEquivalents } from '@/lib/calculatio
 import { ACTIVITY_LABELS, ACTIVITY_DESCRIPTIONS } from '@/constants/co2Factors';
 
 const ACTIVITY_LIST_STORAGE_KEY = 'carbon_tracker_visible_activities';
+const CUSTOM_ACTIVITY_LIST_STORAGE_KEY = 'carbon_tracker_custom_activities';
 const ALL_FIELD_KEYS: Array<keyof ActivityInput> = [
   'emails',
   'streamingHours',
@@ -149,8 +150,40 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
   }, []);
 
   useEffect(() => {
+    const raw = localStorage.getItem(CUSTOM_ACTIVITY_LIST_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return;
+      }
+
+      const validEntries = parsed.filter((entry): entry is CustomActivityEntry => {
+        return (
+          entry &&
+          typeof entry.id === 'string' &&
+          typeof entry.name === 'string' &&
+          typeof entry.emission === 'number' &&
+          entry.emission >= 0
+        );
+      });
+
+      setCustomActivities(validEntries);
+    } catch {
+      // If parsing fails, keep defaults.
+    }
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(ACTIVITY_LIST_STORAGE_KEY, JSON.stringify(visibleFieldKeys));
   }, [visibleFieldKeys]);
+
+  useEffect(() => {
+    localStorage.setItem(CUSTOM_ACTIVITY_LIST_STORAGE_KEY, JSON.stringify(customActivities));
+  }, [customActivities]);
 
   const formFields = useMemo(
     () => allFormFields.filter((field) => visibleFieldKeys.includes(field.key)),
@@ -303,7 +336,6 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
         });
         setErrors({});
         setTouched({});
-        setCustomActivities([]);
         setCustomActivityName('');
         setCustomActivityEmission(0);
         setIsSubmitting(false);
