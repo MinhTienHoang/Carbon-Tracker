@@ -5,9 +5,9 @@ export const CO2_FACTORS: Record<ActivityType, number> = {
   emails: 4, // grams per email
   streaming: 36, // grams per hour
   coding: 15, // grams per hour (local development)
-  video_calls: 150, // grams per hour
+  video_calls: 80, // grams per hour
   cloud_storage: 0.5, // grams per GB per day
-  gaming: 60, // grams per hour
+  gaming: 40, // grams per hour
   social_media: 12, // grams per hour
 };
 

@@ -40,7 +40,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
     id: "call_30m",
     icon: "📹",
     label: "30m Video Call",
-    toastMessage: "✅ Added 30 min video call (75g CO2)",
+    toastMessage: "✅ Added 30 min video call (40g CO2)",
     activities: { videoCallHours: 0.5 },
   },
   {
