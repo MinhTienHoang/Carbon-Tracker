@@ -7,6 +7,7 @@ import { ACTIVITY_LABELS, ACTIVITY_DESCRIPTIONS } from '@/constants/co2Factors';
 
 const ACTIVITY_LIST_STORAGE_KEY = 'carbon_tracker_visible_activities';
 const CUSTOM_ACTIVITY_LIST_STORAGE_KEY = 'carbon_tracker_custom_activities';
+const CUSTOM_ACTIVITY_VALUES_STORAGE_KEY = 'carbon_tracker_custom_activity_values';
 const ALL_FIELD_KEYS: Array<keyof ActivityInput> = [
   'emails',
   'streamingHours',
@@ -29,7 +30,11 @@ type ActivityFieldConfig = {
 type CustomActivityEntry = {
   id: string;
   name: string;
-  emission: number;
+  unit: string;
+  emissionFactor: number;
+  max: number;
+  step: number;
+  icon: string;
 };
 
 const allFormFields: ActivityFieldConfig[] = [
@@ -122,8 +127,12 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
   const [visibleFieldKeys, setVisibleFieldKeys] = useState<Array<keyof ActivityInput>>(ALL_FIELD_KEYS);
   const [selectedFieldToAdd, setSelectedFieldToAdd] = useState<keyof ActivityInput | ''>('');
   const [customActivities, setCustomActivities] = useState<CustomActivityEntry[]>([]);
+  const [customActivityValues, setCustomActivityValues] = useState<Record<string, number>>({});
   const [customActivityName, setCustomActivityName] = useState('');
-  const [customActivityEmission, setCustomActivityEmission] = useState<number>(0);
+  const [customActivityUnit, setCustomActivityUnit] = useState('hrs');
+  const [customActivityFactor, setCustomActivityFactor] = useState<number>(0);
+  const [customActivityMax, setCustomActivityMax] = useState<number>(24);
+  const [customActivityStep, setCustomActivityStep] = useState<number>(0.5);
 
   useEffect(() => {
     const raw = localStorage.getItem(ACTIVITY_LIST_STORAGE_KEY);
@@ -162,6 +171,24 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
       }
 
       const validEntries = parsed.filter((entry): entry is CustomActivityEntry => {
+        const hasNewShape =
+          entry &&
+          typeof entry.id === 'string' &&
+          typeof entry.name === 'string' &&
+          typeof entry.unit === 'string' &&
+          typeof entry.emissionFactor === 'number' &&
+          entry.emissionFactor >= 0 &&
+          typeof entry.max === 'number' &&
+          entry.max > 0 &&
+          typeof entry.step === 'number' &&
+          entry.step > 0 &&
+          typeof entry.icon === 'string';
+
+        if (hasNewShape) {
+          return true;
+        }
+
+        // Backward compatibility for old one-off custom format.
         return (
           entry &&
           typeof entry.id === 'string' &&
@@ -171,7 +198,45 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
         );
       });
 
-      setCustomActivities(validEntries);
+      const migratedEntries = validEntries.map((entry) => {
+        if ('emissionFactor' in entry) {
+          return entry;
+        }
+
+        return {
+          id: entry.id,
+          name: entry.name,
+          unit: 'units',
+          emissionFactor: entry.emission,
+          max: 100,
+          step: 1,
+          icon: '🧩',
+        };
+      });
+
+      setCustomActivities(migratedEntries);
+    } catch {
+      // If parsing fails, keep defaults.
+    }
+  }, []);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(CUSTOM_ACTIVITY_VALUES_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const validValues: Record<string, number> = {};
+
+      Object.entries(parsed).forEach(([key, value]) => {
+        if (typeof value === 'number' && value >= 0) {
+          validValues[key] = value;
+        }
+      });
+
+      setCustomActivityValues(validValues);
     } catch {
       // If parsing fails, keep defaults.
     }
@@ -185,6 +250,10 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
     localStorage.setItem(CUSTOM_ACTIVITY_LIST_STORAGE_KEY, JSON.stringify(customActivities));
   }, [customActivities]);
 
+  useEffect(() => {
+    localStorage.setItem(CUSTOM_ACTIVITY_VALUES_STORAGE_KEY, JSON.stringify(customActivityValues));
+  }, [customActivityValues]);
+
   const formFields = useMemo(
     () => allFormFields.filter((field) => visibleFieldKeys.includes(field.key)),
     [visibleFieldKeys]
@@ -196,8 +265,11 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
   );
 
   const customActivitiesTotal = useMemo(
-    () => customActivities.reduce((sum, activity) => sum + activity.emission, 0),
-    [customActivities]
+    () => customActivities.reduce((sum, activity) => {
+      const value = customActivityValues[activity.id] || 0;
+      return sum + value * activity.emissionFactor;
+    }, 0),
+    [customActivities, customActivityValues]
   );
 
   const validateField = (field: keyof ActivityInput, value: number) => {
@@ -278,25 +350,53 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
       return;
     }
 
-    if (customActivityEmission <= 0) {
-      setErrors((prev) => ({ ...prev, form: 'Custom activity emission must be greater than 0' }));
+    if (customActivityFactor <= 0) {
+      setErrors((prev) => ({ ...prev, form: 'CO2 factor must be greater than 0' }));
+      return;
+    }
+
+    if (!customActivityUnit.trim()) {
+      setErrors((prev) => ({ ...prev, form: 'Custom activity unit is required' }));
+      return;
+    }
+
+    if (customActivityMax <= 0 || customActivityStep <= 0) {
+      setErrors((prev) => ({ ...prev, form: 'Max and step must be greater than 0' }));
       return;
     }
 
     const newEntry: CustomActivityEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: trimmedName,
-      emission: customActivityEmission,
+      unit: customActivityUnit.trim(),
+      emissionFactor: customActivityFactor,
+      max: customActivityMax,
+      step: customActivityStep,
+      icon: '🧩',
     };
 
     setCustomActivities((prev) => [...prev, newEntry]);
+    setCustomActivityValues((prev) => ({ ...prev, [newEntry.id]: 0 }));
     setCustomActivityName('');
-    setCustomActivityEmission(0);
+    setCustomActivityUnit('hrs');
+    setCustomActivityFactor(0);
+    setCustomActivityMax(24);
+    setCustomActivityStep(0.5);
     setErrors((prev) => ({ ...prev, form: '' }));
   };
 
   const handleRemoveCustomActivity = (id: string) => {
     setCustomActivities((prev) => prev.filter((item) => item.id !== id));
+    setCustomActivityValues((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleCustomValueChange = (id: string, value: number) => {
+    setCustomActivityValues((prev) => ({ ...prev, [id]: Math.max(0, value) }));
+    setErrors((prev) => ({ ...prev, form: '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -334,10 +434,20 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
           gamingHours: 0,
           socialMediaHours: 0,
         });
+        setCustomActivityValues((prev) => {
+          const resetValues: Record<string, number> = {};
+          customActivities.forEach((activity) => {
+            resetValues[activity.id] = 0;
+          });
+          return { ...prev, ...resetValues };
+        });
         setErrors({});
         setTouched({});
         setCustomActivityName('');
-        setCustomActivityEmission(0);
+        setCustomActivityUnit('hrs');
+        setCustomActivityFactor(0);
+        setCustomActivityMax(24);
+        setCustomActivityStep(0.5);
         setIsSubmitting(false);
       }, 500);
 
@@ -396,10 +506,10 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-3">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Add Custom Activity</h3>
-              <p className="text-xs text-gray-600">Log any activity not in the list and enter its CO2 emission directly in grams.</p>
+              <p className="text-xs text-gray-600">Create your own activity card and adjust its value like the built-in list.</p>
             </div>
 
-            <div className="grid sm:grid-cols-[1fr_180px_auto] gap-2 items-center">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-2 items-center">
               <input
                 type="text"
                 value={customActivityName}
@@ -413,13 +523,41 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
                   type="number"
                   min="0"
                   step="0.1"
-                  value={customActivityEmission}
-                  onChange={(e) => setCustomActivityEmission(parseFloat(e.target.value) || 0)}
+                  value={customActivityFactor}
+                  onChange={(e) => setCustomActivityFactor(parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 text-sm text-gray-900 focus:outline-none"
-                  aria-label="Custom activity emission in grams of CO2"
+                  aria-label="Custom activity CO2 factor in grams"
                 />
-                <span className="px-2 text-xs text-gray-500 border-l border-gray-200">g CO2</span>
+                <span className="px-2 text-xs text-gray-500 border-l border-gray-200">g/unit</span>
               </div>
+              <input
+                type="text"
+                value={customActivityUnit}
+                onChange={(e) => setCustomActivityUnit(e.target.value)}
+                placeholder="Unit (e.g. hrs)"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                aria-label="Custom activity unit"
+              />
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={customActivityMax}
+                onChange={(e) => setCustomActivityMax(parseFloat(e.target.value) || 24)}
+                placeholder="Max"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                aria-label="Custom activity max value"
+              />
+              <input
+                type="number"
+                min="0.1"
+                step="0.1"
+                value={customActivityStep}
+                onChange={(e) => setCustomActivityStep(parseFloat(e.target.value) || 0.5)}
+                placeholder="Step"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                aria-label="Custom activity step"
+              />
               <button
                 type="button"
                 onClick={handleAddCustomActivity}
@@ -431,20 +569,54 @@ export default function ActivityForm({ onSubmit, initialValues }: ActivityFormPr
 
             {customActivities.length > 0 && (
               <div className="space-y-2">
-                {customActivities.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between bg-white border border-emerald-100 rounded-md px-3 py-2">
-                    <span className="text-sm text-gray-800">{item.name}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-emerald-700">{item.emission.toFixed(1)} g CO2</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveCustomActivity(item.id)}
-                        className="text-xs font-medium text-red-600 hover:text-red-700"
-                        aria-label={`Remove custom activity ${item.name}`}
-                      >
-                        Delete
-                      </button>
+                {customActivities.map((item) => {
+                  const value = customActivityValues[item.id] || 0;
+                  const emission = value * item.emissionFactor;
+
+                  return (
+                    <div key={item.id} className="bg-white border border-emerald-100 rounded-md px-3 py-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-800">{item.icon} {item.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomActivity(item.id)}
+                          className="text-xs font-medium text-red-600 hover:text-red-700"
+                          aria-label={`Remove custom activity ${item.name}`}
+                        >
+                          Delete
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max={item.max}
+                          step={item.step}
+                          value={value}
+                          onChange={(e) => handleCustomValueChange(item.id, parseFloat(e.target.value) || 0)}
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                          aria-label={`${item.name} value`}
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max={item.max}
+                          step={item.step}
+                          value={value}
+                          onChange={(e) => handleCustomValueChange(item.id, parseFloat(e.target.value) || 0)}
+                          className="w-20 px-2 py-1 border rounded-md text-sm text-gray-900"
+                          aria-label={`${item.name} number value`}
+                        />
+                        <span className="text-xs text-gray-500 min-w-fit">{item.unit}</span>
+                      </div>
+
+                      <p className="text-xs text-emerald-700 font-medium">
+                        {emission.toFixed(1)} g CO2 ({item.emissionFactor.toFixed(1)} g/{item.unit})
+                      </p>
                     </div>
+                  );
+                })}
                   </div>
                 ))}
 
