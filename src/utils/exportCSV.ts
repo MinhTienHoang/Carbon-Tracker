@@ -1,15 +1,4 @@
-import { ActivityInput } from '@/types';
-
-export interface ActivityHistoryEntry {
-  id: string;
-  activities: ActivityInput;
-  result: {
-    totalCO2: number;
-    breakdown: Record<string, number>;
-    equivalents: Array<{ description: string; value: number; unit: string }>;
-  };
-  timestamp: Date;
-}
+import { ActivityHistoryEntry } from '@/types';
 
 export interface CSVRow {
   date: string;

@@ -130,3 +130,14 @@ export interface DashboardData {
   trend: Array<{ date: string; co2: number }>;
   equivalents: Array<{ description: string; value: number; unit: string }>;
 }
+
+export interface ActivityHistoryEntry {
+  id: string;
+  activities: ActivityInput;
+  result: {
+    totalCO2: number;
+    breakdown: Record<string, number>;
+    equivalents: Array<{ description: string; value: number; unit: string }>;
+  };
+  timestamp: Date;
+}

@@ -1,7 +1,8 @@
-import { Activity, CarbonFootprint } from "@/types";
+import { Activity, ActivityHistoryEntry, CarbonFootprint } from "@/types";
 
 const ACTIVITIES_KEY = "carbon_tracker_activities";
 const FOOTPRINTS_KEY = "carbon_tracker_footprints";
+const HISTORY_KEY = "carbon_tracker_activity_history";
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -51,4 +52,32 @@ export const getUserFootprints = async (
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return footprints;
+};
+
+type StoredHistoryEntry = ActivityHistoryEntry & {
+  userId: string;
+  timestamp: string | Date;
+};
+
+export const saveActivityHistoryEntry = async (
+  userId: string,
+  entry: ActivityHistoryEntry
+) => {
+  const existing = readList<StoredHistoryEntry>(HISTORY_KEY);
+  const next = [...existing, { ...entry, userId }];
+  writeList(HISTORY_KEY, next);
+};
+
+export const getUserActivityHistory = async (
+  userId: string
+): Promise<ActivityHistoryEntry[]> => {
+  const entries = readList<StoredHistoryEntry>(HISTORY_KEY)
+    .filter((entry) => entry.userId === userId)
+    .map((entry) => ({
+      ...entry,
+      timestamp: new Date(entry.timestamp),
+    }))
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+  return entries;
 };

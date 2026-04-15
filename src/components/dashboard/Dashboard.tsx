@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuthDev";
-import { DashboardData, ActivityType } from "@/types";
+import { DashboardData, ActivityHistoryEntry, ActivityType } from "@/types";
 import {
   formatCO2Amount,
   calculateEquivalents,
@@ -11,7 +11,7 @@ import FootprintChart from "@/components/charts/FootprintChart";
 import ComparisonSection from "@/components/dashboard/ComparisonSection";
 import ShareButton from "@/components/ui/ShareButton";
 import { getUserFootprints } from "@/lib/storage/localData";
-import { exportToCSV, ActivityHistoryEntry } from "@/utils/exportCSV";
+import { exportToCSV } from "@/utils/exportCSV";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import Spinner from "@/components/ui/Spinner";
 
