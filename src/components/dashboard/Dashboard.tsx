@@ -184,7 +184,7 @@ export default function Dashboard({
 
   const historyDashboardData = useMemo(
     () => buildDashboardDataFromHistory(activityHistory as ActivityHistoryEntry[]),
-    [activityHistory?.length]
+    [activityHistory]
   );
 
   const displayedDashboardData = historyDashboardData ?? dashboardData;
@@ -310,6 +310,19 @@ export default function Dashboard({
     }, 4000);
   };
 
+  const recentActivityEntries = useMemo(() => {
+    if (!activityHistory || activityHistory.length === 0) return [];
+    const entries = Array.isArray(activityHistory) ? activityHistory : [];
+    return entries
+      .slice()
+      .sort(
+        (a, b) =>
+          getTimestampValue(b.timestamp).getTime() -
+          getTimestampValue(a.timestamp).getTime()
+      )
+        .slice(0, 4);
+      }, [activityHistory]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -347,19 +360,6 @@ export default function Dashboard({
       </div>
     );
   }
-
-  const recentActivityEntries = useMemo(() => {
-    if (!activityHistory || activityHistory.length === 0) return [];
-    const entries = Array.isArray(activityHistory) ? activityHistory : [];
-    return entries
-      .slice()
-      .sort(
-        (a, b) =>
-          getTimestampValue(b.timestamp).getTime() -
-          getTimestampValue(a.timestamp).getTime()
-      )
-      .slice(0, 4);
-  }, [activityHistory?.length, activityHistory]);
 
   const formatActivitySummary = (entry: any) => {
     if (!entry?.activities) return "No activities";

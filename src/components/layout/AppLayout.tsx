@@ -69,38 +69,39 @@ useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY, newSort);
   };
 
-  const getSortedActivityHistory = () => {
-    // We create a shallow copy to ensure we don't mutate the original state
+  const memoizedSortedHistory = useMemo(() => {
+    // We create a shallow copy to ensure we don't mutate the original state.
     const sortedList = [...activityHistory];
 
     switch (sortPreference) {
       case "newest":
-        // Sort descending by timestamp
+        // Sort descending by timestamp.
         return sortedList.sort(
-          (a, b) => getTimestampValue(b.timestamp).getTime() - getTimestampValue(a.timestamp).getTime()
+          (a, b) =>
+            getTimestampValue(b.timestamp).getTime() -
+            getTimestampValue(a.timestamp).getTime()
         );
       case "oldest":
-        // Sort ascending by timestamp
+        // Sort ascending by timestamp.
         return sortedList.sort(
-          (a, b) => getTimestampValue(a.timestamp).getTime() - getTimestampValue(b.timestamp).getTime()
+          (a, b) =>
+            getTimestampValue(a.timestamp).getTime() -
+            getTimestampValue(b.timestamp).getTime()
         );
       case "highest_impact":
-        // Impact is based on totalCO2, so sort descending
+        // Impact is based on totalCO2, so sort descending.
         return sortedList.sort((a, b) => b.result.totalCO2 - a.result.totalCO2);
       case "lowest_impact":
-        // Impact is based on totalCO2, so sort ascending
+        // Impact is based on totalCO2, so sort ascending.
         return sortedList.sort((a, b) => a.result.totalCO2 - b.result.totalCO2);
       default:
         return sortedList.sort(
-          (a, b) => getTimestampValue(b.timestamp).getTime() - getTimestampValue(a.timestamp).getTime()
-        ); // Default to newest
+          (a, b) =>
+            getTimestampValue(b.timestamp).getTime() -
+            getTimestampValue(a.timestamp).getTime()
+        );
     }
-  };
-
-  const memoizedSortedHistory = useMemo(
-    () => getSortedActivityHistory(),
-    [activityHistory.length, sortPreference]
-  );
+  }, [activityHistory, sortPreference]);
 
   const loadTodayFootprint = async () => {
     // This would fetch today's footprint from the database
